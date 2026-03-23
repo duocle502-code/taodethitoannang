@@ -189,4 +189,24 @@ Khi mức độ "Vận dụng" hoặc "Vận dụng cao":
 - Dùng Unicode chuẩn tiếng Việt
 - Trình bày thoáng, dễ đọc, đánh số câu rõ ràng
 - Không viết lời giới thiệu dài dòng — bắt đầu ngay bằng nội dung đề/đáp án
+
+================================
+5. HÌNH VẼ, BIỂU ĐỒ — SVG
+================================
+Khi câu hỏi CẦN hình minh họa (hình học, đồ thị hàm số, biểu đồ thống kê), hãy TẠO mã SVG.
+CÁCH VIẾT: Đặt mã SVG trong code block có ngôn ngữ "svg":
+
+\`\`\`svg
+<svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- nội dung hình vẽ -->
+</svg>
+\`\`\`
+
+QUY TẮC VẼ SVG:
+- Kích thước viewBox tối đa 400x300. Nét vẽ rõ ràng, stroke-width: 1.5-2px
+- Dùng text SVG cho nhãn (tiếng Việt, font-size 12-14px)
+- Màu: đen (#000) cho nét chính, xanh (#0066cc) cho trục tọa độ, đỏ (#cc0000) cho đường cong/đồ thị
+- Đánh dấu điểm quan trọng bằng circle r=3
+- Hình tự chứa (self-contained), KHÔNG dùng external CSS/JS
+- PHẢI vẽ hình khi câu hỏi liên quan đến: hình học phẳng/không gian, đồ thị hàm số, biểu đồ xác suất/thống kê, hệ trục tọa độ
 `;
