@@ -51,7 +51,8 @@ export interface ExamRequest {
   model: AIModelId;
   // File uploads
   sampleExamFiles: UploadedFile[];     // Đề mẫu
-  referenceFiles: UploadedFile[];      // Tài liệu tham khảo
+  referenceFiles: UploadedFile[];      // Tài liệu tham khảo (file)
+  referenceUrls: string[];             // Tài liệu tham khảo (link/URL)
 }
 
 // ============================================
@@ -68,4 +69,19 @@ export interface BankQuestion {
   tags: string[];               // Tags tự do
   createdAt: string;            // ISO date
   updatedAt: string;
+}
+
+// ============================================
+// ĐỀ THI ĐÃ LƯU
+// ============================================
+export interface SavedExam {
+  id: string;
+  title: string;                // Tiêu đề (tự động + có thể đổi)
+  examContent: string;          // Nội dung đề
+  answersContent: string;       // Đáp án (có thể rỗng)
+  examMode: ExamMode;
+  examFormat: ExamFormat;
+  difficulty: string;
+  model: string;
+  createdAt: string;            // ISO date
 }
