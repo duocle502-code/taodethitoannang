@@ -259,15 +259,22 @@ export const ExamHistory: React.FC<ExamHistoryProps> = ({ onClose, onLoadExam })
     </div>
   );
 };
+// ============================================
+// UTILITY FUNCTIONS (exported)
+// ============================================
 
-// ============================================
-// UTILITY: Save exam to history
-// ============================================
-export function saveExamToHistory(exam: SavedExam) {
+export function saveExamToHistory(exam: SavedExam): void {
   const exams = loadExams();
-  // Prepend new exam (newest first)
   exams.unshift(exam);
-  // Keep max 50 exams
   if (exams.length > 50) exams.pop();
   saveExams(exams);
+}
+
+export function updateExamInHistory(id: string, updates: Partial<SavedExam>): void {
+  const exams = loadExams();
+  const idx = exams.findIndex((e) => e.id === id);
+  if (idx >= 0) {
+    exams[idx] = { ...exams[idx], ...updates };
+    saveExams(exams);
+  }
 }
