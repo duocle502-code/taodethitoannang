@@ -49,9 +49,67 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
   const handleDownloadWord = async () => {
     setIsDownloading(true);
     try {
-      const processText = (text: string): string => {
-        return text.replace(/\*\*/g, '');
+      // Convert LaTeX math → Unicode cho DOCX
+      const latexToUnicode = (text: string): string => {
+        return text
+          // Strip $...$ and $$...$$ delimiters
+          .replace(/\$\$([\s\S]*?)\$\$/g, ' $1 ')
+          .replace(/\$(.*?)\$/g, '$1')
+          // Fractions: \frac{a}{b} → a/b
+          .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '($1/$2)')
+          // Superscripts
+          .replace(/\^{([^}]*)}/g, (_, exp) => {
+            const sup: Record<string, string> = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','n':'ⁿ','x':'ˣ','+':'⁺','-':'⁻','(':'⁽',')':'⁾'};
+            return exp.split('').map((c: string) => sup[c] || c).join('');
+          })
+          .replace(/\^(\d)/g, (_, d) => {
+            const sup: Record<string, string> = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
+            return sup[d] || d;
+          })
+          // Subscripts
+          .replace(/_{([^}]*)}/g, (_, sub) => {
+            const subs: Record<string, string> = {'0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉','n':'ₙ','i':'ᵢ','k':'ₖ'};
+            return sub.split('').map((c: string) => subs[c] || c).join('');
+          })
+          .replace(/_(\d)/g, (_, d) => {
+            const subs: Record<string, string> = {'0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉'};
+            return subs[d] || d;
+          })
+          // Square root
+          .replace(/\\sqrt\{([^}]*)\}/g, '√($1)')
+          .replace(/\\sqrt\s/g, '√')
+          // Greek letters
+          .replace(/\\alpha/g,'α').replace(/\\beta/g,'β').replace(/\\gamma/g,'γ').replace(/\\delta/g,'δ')
+          .replace(/\\epsilon/g,'ε').replace(/\\theta/g,'θ').replace(/\\lambda/g,'λ').replace(/\\mu/g,'μ')
+          .replace(/\\pi/g,'π').replace(/\\sigma/g,'σ').replace(/\\phi/g,'φ').replace(/\\omega/g,'ω')
+          .replace(/\\Delta/g,'Δ').replace(/\\Sigma/g,'Σ').replace(/\\Omega/g,'Ω').replace(/\\Phi/g,'Φ')
+          // Operators & symbols
+          .replace(/\\leq/g,'≤').replace(/\\geq/g,'≥').replace(/\\neq/g,'≠').replace(/\\approx/g,'≈')
+          .replace(/\\pm/g,'±').replace(/\\mp/g,'∓').replace(/\\times/g,'×').replace(/\\div/g,'÷')
+          .replace(/\\cdot/g,'·').replace(/\\infty/g,'∞').replace(/\\in/g,'∈').replace(/\\notin/g,'∉')
+          .replace(/\\subset/g,'⊂').replace(/\\cup/g,'∪').replace(/\\cap/g,'∩')
+          .replace(/\\forall/g,'∀').replace(/\\exists/g,'∃')
+          .replace(/\\Rightarrow/g,'⇒').replace(/\\Leftrightarrow/g,'⇔')
+          .replace(/\\rightarrow/g,'→').replace(/\\leftarrow/g,'←')
+          .replace(/\\le\b/g,'≤').replace(/\\ge\b/g,'≥').replace(/\\ne\b/g,'≠')
+          // Integrals, sums
+          .replace(/\\int/g,'∫').replace(/\\sum/g,'Σ').replace(/\\prod/g,'∏').replace(/\\lim/g,'lim')
+          // Overline
+          .replace(/\\overline\{([^}]*)\}/g, '$1\u0305')
+          // Braces & misc
+          .replace(/\\left\(/g,'(').replace(/\\right\)/g,')').replace(/\\left\[/g,'[').replace(/\\right\]/g,']')
+          .replace(/\\left\\\{/g,'{').replace(/\\right\\\}/g,'}')
+          .replace(/\\{/g,'{').replace(/\\}/g,'}')
+          .replace(/\\text\{([^}]*)\}/g, '$1')
+          .replace(/\\mathrm\{([^}]*)\}/g, '$1')
+          .replace(/\\quad/g, '  ').replace(/\\qquad/g, '    ')
+          // Strip remaining backslash commands
+          .replace(/\\[a-zA-Z]+/g, '')
+          // Clean up markdown bold
+          .replace(/\*\*/g, '');
       };
+
+      const processText = (text: string): string => latexToUnicode(text);
 
       const createTableFromMarkdown = (tableLines: string[]): Table => {
         const cellBorder = { style: BorderStyle.SINGLE, size: 1, color: "000000" };
@@ -291,7 +349,18 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
         return '<tr>' + cells.map(c => `<${tag} style="border:1px solid #333;padding:6px 10px;text-align:center">${c.trim()}</${tag}>`).join('') + '</tr>';
       })
       .replace(/(<tr>.*<\/tr>\n?)+/g, '<table style="border-collapse:collapse;width:100%;margin:12px 0">$&</table>')
-      .replace(/\n/g, '<br/>');
+      // SVG code blocks: render as actual SVG
+      .replace(/```svg\n([\s\S]*?)```/g, (_, svgCode) => `<div style="text-align:center;margin:16px 0">${svgCode}</div>`)
+      // Xử lý xuống dòng: đoạn mới (2 newlines) → <p>, đơn newline → <br>
+      .split(/\n{2,}/)
+      .map(block => {
+        const trimmed = block.trim();
+        if (!trimmed) return '';
+        // Skip blocks already wrapped in HTML tags
+        if (trimmed.startsWith('<h') || trimmed.startsWith('<hr') || trimmed.startsWith('<table') || trimmed.startsWith('<div')) return trimmed;
+        return '<p style="margin:4px 0">' + trimmed.replace(/\n/g, '<br/>') + '</p>';
+      })
+      .join('\n');
 
     printWindow.document.write(`
       <!DOCTYPE html>
