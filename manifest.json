@@ -1,7 +1,7 @@
 {
-  "name": "TẠO ĐỀ THI TOÁN — EDUGENVN",
+  "name": "TẠO ĐỀ THI — EDUGENVN",
   "short_name": "EduGenVN",
-  "description": "Ứng dụng AI tạo đề thi Toán vào lớp 10 và Tốt nghiệp THPT tự động bằng Gemini",
+  "description": "Ứng dụng AI tạo đề thi vào lớp 10 và Tốt nghiệp THPT tự động bằng Gemini",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8fafc",
