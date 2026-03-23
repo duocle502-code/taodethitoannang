@@ -38,6 +38,7 @@ const App: React.FC = () => {
     model: 'gemini-2.5-flash',
     sampleExamFiles: [],
     referenceFiles: [],
+    referenceUrls: [],
   });
 
   // ====== State: Kết quả — TÁCH ĐỀ và ĐÁP ÁN ======
@@ -203,8 +204,8 @@ const App: React.FC = () => {
       return;
     }
 
-    if (request.sampleExamFiles.length === 0 && request.referenceFiles.length === 0) {
-      setError('Vui lòng tải lên ít nhất 1 file đề mẫu hoặc tài liệu tham khảo.');
+    if (request.sampleExamFiles.length === 0 && request.referenceFiles.length === 0 && (!request.referenceUrls || request.referenceUrls.length === 0)) {
+      setError('Vui lòng tải lên ít nhất 1 file đề mẫu, tài liệu tham khảo, hoặc thêm liên kết.');
       return;
     }
 
@@ -453,7 +454,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <h1 className="text-base md:text-lg font-bold text-teal-900 tracking-tight leading-tight">
-                TẠO ĐỀ THI TOÁN — EDUGENVN
+                TẠO ĐỀ THI — EDUGENVN
               </h1>
               <p className="text-[10px] md:text-xs text-slate-500 leading-tight">
                 Tự động tạo đề thi vào 10 &amp; TN THPT bằng AI Gemini
@@ -637,7 +638,7 @@ const App: React.FC = () => {
         <div className="max-w-5xl mx-auto text-center">
           <div className="mb-4 p-5 bg-gradient-to-r from-teal-900/40 to-emerald-900/40 rounded-2xl border border-teal-500/30">
             <p className="font-bold text-sm md:text-base text-teal-100 mb-2 leading-relaxed">
-              TẠO ĐỀ THI TOÁN THÔNG MINH — Vào 10 &amp; TN THPT
+              TẠO ĐỀ THI THÔNG MINH — Vào 10 &amp; TN THPT
             </p>
             <p className="text-xs text-teal-300/80">
               AI phân tích đề mẫu + tài liệu tham khảo → Tạo đề mới chính xác, bám sát cấu trúc
