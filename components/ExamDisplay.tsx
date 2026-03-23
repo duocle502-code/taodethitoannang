@@ -264,6 +264,88 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
   };
 
   // ============================================
+  // DOWNLOAD PDF (via browser print)
+  // ============================================
+  const handleDownloadPDF = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Trình duyệt đã chặn popup. Vui lòng cho phép popup để tải PDF.');
+      return;
+    }
+
+    const content = answersContent
+      ? `${examContent}\n\n---\n\n## ĐÁP ÁN VÀ LỜI GIẢI CHI TIẾT\n\n${answersContent}`
+      : examContent;
+
+    // Convert markdown-like content to simple HTML
+    const htmlContent = content
+      .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+      .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+      .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^---$/gm, '<hr style="page-break-before: always; border: none;" />')
+      .replace(/^\|(.+)\|$/gm, (match) => {
+        const cells = match.split('|').filter(c => c.trim() !== '');
+        if (cells.every(c => /^[-:\s]+$/.test(c.trim()))) return '';
+        const tag = 'td';
+        return '<tr>' + cells.map(c => `<${tag} style="border:1px solid #333;padding:6px 10px;text-align:center">${c.trim()}</${tag}>`).join('') + '</tr>';
+      })
+      .replace(/(<tr>.*<\/tr>\n?)+/g, '<table style="border-collapse:collapse;width:100%;margin:12px 0">$&</table>')
+      .replace(/\n/g, '<br/>');
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="vi">
+      <head>
+        <meta charset="UTF-8">
+        <title>Đề Thi Toán — EduGenVN</title>
+        <script>
+          MathJax = {
+            tex: { inlineMath: [['$','$'],['\\\\(','\\\\)']], displayMath: [['$$','$$'],['\\\\[','\\\\]']], processEscapes: true },
+            svg: { fontCache: 'global' }
+          };
+        </` + `script>
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></` + `script>
+        <style>
+          body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.7; color: #000; padding: 20px; max-width: 800px; margin: 0 auto; }
+          h1 { font-size: 16pt; text-align: center; margin-bottom: 20px; }
+          h2 { font-size: 14pt; margin-top: 24px; }
+          h3 { font-size: 13pt; margin-top: 16px; }
+          strong { font-weight: bold; }
+          hr { page-break-before: always; border: none; }
+          table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+          th, td { border: 1px solid #333; padding: 6px 10px; text-align: center; }
+          .footer { text-align: center; color: #666; font-size: 10pt; font-style: italic; margin-top: 40px; padding-top: 16px; border-top: 1px solid #ccc; }
+          @media print {
+            body { padding: 0; }
+            @page { size: A4; margin: 15mm 20mm; }
+          }
+        </style>
+      </head>
+      <body>
+        ${htmlContent}
+        <div class="footer">Đề thi được tạo bởi EDUGENVN — Phát triển bởi thầy Trần Hoài Thanh</div>
+        <script>
+          // Chờ MathJax render xong rồi mở print dialog
+          window.addEventListener('load', function() {
+            setTimeout(function() {
+              if (window.MathJax && window.MathJax.typesetPromise) {
+                window.MathJax.typesetPromise().then(function() {
+                  setTimeout(function() { window.print(); }, 500);
+                });
+              } else {
+                setTimeout(function() { window.print(); }, 1500);
+              }
+            }, 1000);
+          });
+        </` + `script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  // ============================================
   // RENDER
   // ============================================
   return (
@@ -275,6 +357,15 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
           Nội Dung Đề Thi
         </h3>
         <div className="flex items-center gap-2">
+          {/* Tải PDF */}
+          <button
+            onClick={handleDownloadPDF}
+            className="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-md transition-colors shadow-sm font-bold flex items-center gap-1.5"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            Tải PDF
+          </button>
+          {/* Tải Word */}
           <button
             onClick={handleDownloadWord}
             disabled={isDownloading}
