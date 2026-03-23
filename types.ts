@@ -53,3 +53,19 @@ export interface ExamRequest {
   sampleExamFiles: UploadedFile[];     // Đề mẫu
   referenceFiles: UploadedFile[];      // Tài liệu tham khảo
 }
+
+// ============================================
+// NGÂN HÀNG CÂU HỎI
+// ============================================
+export interface BankQuestion {
+  id: string;
+  content: string;              // Nội dung câu hỏi (hỗ trợ LaTeX)
+  options?: string[];           // Phương án trả lời (nếu trắc nghiệm)
+  answer: string;               // Đáp án / lời giải
+  topic: string;                // Chủ đề (VD: "Hàm số", "Đạo hàm")
+  grade: '10' | '12';          // Khối lớp
+  level: 'NB' | 'TH' | 'VD' | 'VDC';  // Nhận biết / Thông hiểu / Vận dụng / Vận dụng cao
+  tags: string[];               // Tags tự do
+  createdAt: string;            // ISO date
+  updatedAt: string;
+}
