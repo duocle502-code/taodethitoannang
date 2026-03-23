@@ -3,7 +3,8 @@ import { InputForm } from './components/InputForm';
 import { ExamDisplay } from './components/ExamDisplay';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { QuestionBank } from './components/QuestionBank';
-import { ExamMode, ExamFormat, Difficulty, ExamRequest, UploadedFile } from './types';
+import { ExamHistory, saveExamToHistory } from './components/ExamHistory';
+import { ExamMode, ExamFormat, Difficulty, ExamRequest, UploadedFile, SavedExam } from './types';
 import { generateExamOnly, generateAnswers } from './services/geminiService';
 import { apiKeyManager } from './services/apiKeyManager';
 
@@ -62,8 +63,8 @@ const App: React.FC = () => {
   // ====== State: Retry tracking ======
   const [lastAction, setLastAction] = useState<'generate' | 'answers' | null>(null);
 
-  // ====== State: Active View (tạo đề / ngân hàng câu hỏi) ======
-  const [activeView, setActiveView] = useState<'create' | 'bank'>('create');
+  // ====== State: Active View ======
+  const [activeView, setActiveView] = useState<'create' | 'bank' | 'history'>('create');
 
   // ============================================
   // KHỞI TẠO
@@ -475,15 +476,50 @@ const App: React.FC = () => {
               📚 {activeView === 'bank' ? 'Đang xem Ngân hàng' : 'Ngân hàng'}
             </button>
 
+            {/* Tab: Lịch sử đề thi */}
+            <button
+              onClick={() => setActiveView(activeView === 'history' ? 'create' : 'history')}
+              className={`hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                activeView === 'history'
+                  ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              📋 {activeView === 'history' ? 'Đang xem Lịch sử' : 'Lịch sử'}
+            </button>
+
             {/* Nút lưu/xóa phiên */}
             {examContent && activeView === 'create' && (
               <div className="hidden sm:flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    const id = Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+                    const modeLabel = request.examMode === ExamMode.Vao10 ? 'Vào 10' : 'TN THPT';
+                    const title = `Đề ${modeLabel} — ${new Date().toLocaleDateString('vi-VN')}`;
+                    saveExamToHistory({
+                      id,
+                      title,
+                      examContent,
+                      answersContent,
+                      examMode: request.examMode,
+                      examFormat: request.examFormat,
+                      difficulty: request.difficulty,
+                      model: request.model,
+                      createdAt: new Date().toISOString(),
+                    });
+                    alert('Đã lưu đề thi vào lịch sử! Bấm "Lịch sử" trên header để xem.');
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-[10px] font-medium text-indigo-700 transition-colors"
+                  title="Lưu đề thi vào lịch sử"
+                >
+                  💾 Lưu đề
+                </button>
                 <button
                   onClick={saveSession}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-[10px] font-medium text-emerald-700 transition-colors"
                   title="Lưu phiên làm việc"
                 >
-                  💾 Lưu
+                  💾 Phiên
                   {sessionSavedAt && (
                     <span className="text-emerald-500">✓</span>
                   )}
@@ -520,6 +556,16 @@ const App: React.FC = () => {
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
         {activeView === 'bank' ? (
           <QuestionBank onClose={() => setActiveView('create')} />
+        ) : activeView === 'history' ? (
+          <ExamHistory
+            onClose={() => setActiveView('create')}
+            onLoadExam={(exam: SavedExam) => {
+              setExamContent(exam.examContent);
+              setAnswersContent(exam.answersContent);
+              setActiveView('create');
+              setError(null);
+            }}
+          />
         ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
