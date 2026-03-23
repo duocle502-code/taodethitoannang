@@ -442,35 +442,76 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
   };
 
   // ============================================
-  // CUSTOM MARKDOWN COMPONENTS — SVG renderer
+  // SVG RENDERING — Pre-process + Component
   // ============================================
+
+  // Extract SVG blocks from content, replace with markers, and render them separately
+  const svgBlocksRef = useRef<Map<string, string>>(new Map());
+
+  const preprocessSvgContent = (content: string): string => {
+    const svgMap = new Map<string, string>();
+    let processed = content;
+    let counter = 0;
+
+    // Pattern 1: ```svg ... ``` code blocks
+    processed = processed.replace(/```svg\s*\n([\s\S]*?)```/g, (_, svgCode) => {
+      const id = `__SVG_BLOCK_${counter++}__`;
+      svgMap.set(id, svgCode.trim());
+      return `\n\n${id}\n\n`;
+    });
+
+    // Pattern 2: Raw <svg ... </svg> tags inline
+    processed = processed.replace(/<svg[\s\S]*?<\/svg>/gi, (match) => {
+      const id = `__SVG_BLOCK_${counter++}__`;
+      svgMap.set(id, match.trim());
+      return `\n\n${id}\n\n`;
+    });
+
+    svgBlocksRef.current = svgMap;
+    return processed;
+  };
+
+  // Sanitize and render SVG
+  const SvgRenderer: React.FC<{ svgCode: string }> = ({ svgCode }) => {
+    const sanitized = svgCode
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/on\w+="[^"]*"/gi, '');
+    return (
+      <div
+        className="my-4 flex justify-center"
+        dangerouslySetInnerHTML={{
+          __html: `<div style="max-width:400px;width:100%;overflow:auto;border:1px solid #d1d5db;border-radius:10px;padding:16px;background:#fafbfc;box-shadow:0 1px 3px rgba(0,0,0,0.08);">${sanitized}</div>`
+        }}
+      />
+    );
+  };
+
   const markdownComponents = {
-    code({ className, children, ...props }: any) {
-      const language = className?.replace('language-', '') || '';
-      const codeString = String(children).replace(/\n$/, '');
-
-      // Render SVG code blocks as actual SVG
-      if (language === 'svg' && codeString.includes('<svg')) {
-        // Basic sanitization
-        const sanitized = codeString
-          .replace(/<script[\s\S]*?<\/script>/gi, '')
-          .replace(/on\w+="[^"]*"/gi, '');
-        return (
-          <div
-            className="my-4 flex justify-center"
-            dangerouslySetInnerHTML={{ __html: `<div style="max-width:100%;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;padding:12px;background:#fafafa;">${sanitized}</div>` }}
-          />
-        );
+    // Override 'p' to catch SVG placeholders in paragraph text
+    p({ children, ...props }: any) {
+      const text = String(children);
+      const match = text.match(/__SVG_BLOCK_(\d+)__/);
+      if (match) {
+        const svgCode = svgBlocksRef.current.get(match[0]);
+        if (svgCode) return <SvgRenderer svgCode={svgCode} />;
       }
-
-      // Default: render as normal code block
-      return (
-        <code className={className} {...props}>
-          {children}
-        </code>
-      );
+      return <p {...props}>{children}</p>;
+    },
+    // Override 'code' for fenced blocks that still contain SVG markers
+    code({ className, children, ...props }: any) {
+      const codeString = String(children).replace(/\n$/, '');
+      const match = codeString.match(/__SVG_BLOCK_(\d+)__/);
+      if (match) {
+        const svgCode = svgBlocksRef.current.get(match[0]);
+        if (svgCode) return <SvgRenderer svgCode={svgCode} />;
+      }
+      return <code className={className} {...props}>{children}</code>;
     },
   };
+
+  // Pre-process content for SVG
+  const processedExamContent = preprocessSvgContent(examContent);
+  const processedAnswersContent = preprocessSvgContent(answersContent);
 
   // ============================================
   // RENDER
@@ -526,7 +567,7 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
           </div>
           <div className="prose prose-slate max-w-none prose-headings:font-bold prose-headings:text-teal-900 prose-p:text-slate-700 prose-strong:text-slate-900 prose-li:text-slate-700 prose-sm">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {examContent}
+              {processedExamContent}
             </ReactMarkdown>
           </div>
         </div>
@@ -541,7 +582,7 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
             /* ĐÃ CÓ ĐÁP ÁN → Hiển thị */
             <div className="prose prose-slate max-w-none prose-headings:font-bold prose-headings:text-teal-900 prose-p:text-slate-700 prose-strong:text-slate-900 prose-li:text-slate-700 prose-sm">
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                {answersContent}
+                {processedAnswersContent}
               </ReactMarkdown>
             </div>
           ) : (
