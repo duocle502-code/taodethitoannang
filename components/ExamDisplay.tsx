@@ -220,7 +220,7 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
       const examParagraphs = createParagraphsFromMarkdown(examContent);
       const sectionChildren: any[] = [
         new Paragraph({
-          children: [new TextRun({ text: "ĐỀ THI TOÁN — TẠO BỞI EDUGENVN", bold: true, size: 32, font: "Times New Roman" })],
+          children: [new TextRun({ text: "ĐỀ THI — TẠO BỞI EDUGENVN", bold: true, size: 32, font: "Times New Roman" })],
           heading: HeadingLevel.HEADING_1,
           alignment: AlignmentType.CENTER,
           spacing: { after: 400 }
@@ -250,7 +250,7 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `De_Thi_Toan_EduGenVN_${new Date().toISOString().slice(0, 10)}.docx`;
+      a.download = `De_Thi_EduGenVN_${new Date().toISOString().slice(0, 10)}.docx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -298,7 +298,7 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
       <html lang="vi">
       <head>
         <meta charset="UTF-8">
-        <title>Đề Thi Toán — EduGenVN</title>
+        <title>Đề Thi — EduGenVN</title>
         <script>
           MathJax = {
             tex: { inlineMath: [['$','$'],['\\\\(','\\\\)']], displayMath: [['$$','$$'],['\\\\[','\\\\]']], processEscapes: true },
