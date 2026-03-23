@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { AI_MODELS, DIFFICULTIES } from '../constants';
 import { ExamRequest, ExamMode, ExamFormat, Difficulty, AIModelId, UploadedFile } from '../types';
+import mammoth from 'mammoth';
 
 interface InputFormProps {
   request: ExamRequest;
@@ -20,8 +21,8 @@ export const InputForm: React.FC<InputFormProps> = ({
   const sampleInputRef = useRef<HTMLInputElement>(null);
   const refInputRef = useRef<HTMLInputElement>(null);
 
-  // Xử lý file upload
-  const handleFileUpload = (
+  // Upload file — xử lý riêng DOCX (trích xuất text) vs các loại khác (base64)
+  const handleFileUpload = async (
     type: 'sampleExamFiles' | 'referenceFiles',
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -29,15 +30,42 @@ export const InputForm: React.FC<InputFormProps> = ({
     if (!inputFiles) return;
 
     const existingFiles = type === 'sampleExamFiles' ? request.sampleExamFiles : request.referenceFiles;
-    const newFilesPromises = Array.from(inputFiles).map((file) => {
-      return new Promise<UploadedFile | null>((resolve) => {
-        // Giới hạn 4MB
-        if (file.size > 4 * 1024 * 1024) {
-          alert(`File "${file.name}" quá lớn (>4MB). Vui lòng dùng file nhỏ hơn.`);
-          resolve(null);
-          return;
-        }
+    const newFilesPromises = Array.from(inputFiles).map(async (file): Promise<UploadedFile | null> => {
+      // Giới hạn 4MB
+      if (file.size > 4 * 1024 * 1024) {
+        alert(`File "${file.name}" quá lớn (>4MB). Vui lòng dùng file nhỏ hơn.`);
+        return null;
+      }
 
+      // ===== DOCX: dùng mammoth trích xuất text =====
+      const isDocx = file.name.toLowerCase().endsWith('.docx') ||
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+      if (isDocx) {
+        try {
+          const arrayBuffer = await file.arrayBuffer();
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          const text = result.value;
+          if (!text.trim()) {
+            alert(`File "${file.name}" không có nội dung text.`);
+            return null;
+          }
+          // Encode text thành base64 để giữ format thống nhất
+          const base64 = btoa(unescape(encodeURIComponent(text)));
+          return {
+            name: file.name + ' (text)',
+            base64,
+            mimeType: 'text/plain',
+            size: text.length,
+          };
+        } catch {
+          alert(`Không thể đọc file DOCX "${file.name}". File có thể bị hỏng.`);
+          return null;
+        }
+      }
+
+      // ===== Các file khác: đọc base64 bình thường =====
+      return new Promise<UploadedFile | null>((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => {
           const base64Full = e.target?.result as string;
