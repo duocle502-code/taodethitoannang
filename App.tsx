@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { InputForm } from './components/InputForm';
 import { ExamDisplay } from './components/ExamDisplay';
 import { ApiKeyModal } from './components/ApiKeyModal';
+import { QuestionBank } from './components/QuestionBank';
 import { ExamMode, ExamFormat, Difficulty, ExamRequest, UploadedFile } from './types';
 import { generateExamOnly, generateAnswers } from './services/geminiService';
 import { apiKeyManager } from './services/apiKeyManager';
@@ -59,6 +60,9 @@ const App: React.FC = () => {
 
   // ====== State: Retry tracking ======
   const [lastAction, setLastAction] = useState<'generate' | 'answers' | null>(null);
+
+  // ====== State: Active View (tạo đề / ngân hàng câu hỏi) ======
+  const [activeView, setActiveView] = useState<'create' | 'bank'>('create');
 
   // ============================================
   // KHỞI TẠO
@@ -458,8 +462,20 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Tab: Ngân hàng câu hỏi */}
+            <button
+              onClick={() => setActiveView(activeView === 'bank' ? 'create' : 'bank')}
+              className={`hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                activeView === 'bank'
+                  ? 'bg-amber-50 border-amber-300 text-amber-700'
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              📚 {activeView === 'bank' ? 'Đang xem Ngân hàng' : 'Ngân hàng'}
+            </button>
+
             {/* Nút lưu/xóa phiên */}
-            {examContent && (
+            {examContent && activeView === 'create' && (
               <div className="hidden sm:flex items-center gap-1.5">
                 <button
                   onClick={saveSession}
@@ -501,6 +517,9 @@ const App: React.FC = () => {
 
       {/* ====== MAIN CONTENT ====== */}
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+        {activeView === 'bank' ? (
+          <QuestionBank onClose={() => setActiveView('create')} />
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
           {/* LEFT COLUMN: Input Form */}
@@ -610,6 +629,7 @@ const App: React.FC = () => {
             ) : null}
           </div>
         </div>
+        )}
       </main>
 
       {/* ====== FOOTER ====== */}
