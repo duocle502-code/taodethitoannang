@@ -3,7 +3,63 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TẠO ĐỀ THI TOÁN — Vào 10 & TN THPT | EDUGENVN</title>
+
+    <!-- SEO Basic -->
+    <title>TẠO ĐỀ THI  — Vào 10 & TN THPT | EDUGENVN</title>
+    <meta name="description" content="Ứng dụng AI tạo đề thi Toán tự động cho kỳ thi vào lớp 10 và Tốt nghiệp THPT. Phân tích đề mẫu, tạo đề mới bám sát cấu trúc, đáp án chi tiết. Miễn phí với Gemini API." />
+    <meta name="keywords" content="tạo đề thi toán, đề thi vào lớp 10, đề thi tốt nghiệp THPT, AI tạo đề, gemini, edugenvn, trắc nghiệm toán, tự luận toán, đề thi toán 2025" />
+    <meta name="author" content="Thầy Trần Hoài Thanh — EDUGENVN" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://edugenvn.vercel.app/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://edugenvn.vercel.app/" />
+    <meta property="og:title" content="TẠO ĐỀ THI TOÁN — Vào 10 & TN THPT | EDUGENVN" />
+    <meta property="og:description" content="Ứng dụng AI tạo đề thi Toán tự động. Phân tích đề mẫu → tạo đề mới bám sát cấu trúc. Hỗ trợ trắc nghiệm 3 phần & tự luận. Miễn phí!" />
+    <meta property="og:image" content="https://edugenvn.vercel.app/favicon.svg" />
+    <meta property="og:locale" content="vi_VN" />
+    <meta property="og:site_name" content="EDUGENVN" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="TẠO ĐỀ THI TOÁN — EDUGENVN" />
+    <meta name="twitter:description" content="AI tạo đề thi Toán vào 10 & TN THPT tự động. Miễn phí với Gemini API." />
+    <meta name="twitter:image" content="https://edugenvn.vercel.app/favicon.svg" />
+
+    <!-- PWA & Theme -->
+    <meta name="theme-color" content="#0d9488" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="EduGenVN" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "TẠO ĐỀ THI — EDUGENVN",
+      "description": "Ứng dụng AI tạo đề thi tự động cho kỳ thi vào lớp 10 và Tốt nghiệp THPT",
+      "url": "https://edugenvn.vercel.app/",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "VND"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Thầy Trần Hoài Thanh"
+      },
+      "inLanguage": "vi"
+    }
+    </script>
+
+    <!-- Fonts & Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
@@ -41,8 +97,42 @@
       /* MathJax spacing fix */
       .MathJax { font-size: 1em !important; }
       mjx-container { display: inline !important; margin: 0 !important; }
+
+      /* Print styles for PDF download */
       @media print {
         .no-print { display: none !important; }
+        body { background: white !important; }
+        .print-content {
+          display: block !important;
+          position: static !important;
+          overflow: visible !important;
+          max-height: none !important;
+          height: auto !important;
+          padding: 20px !important;
+          font-size: 12pt !important;
+          line-height: 1.6 !important;
+          color: #000 !important;
+        }
+        .print-content h1, .print-content h2, .print-content h3 {
+          page-break-after: avoid;
+          color: #000 !important;
+        }
+        .print-content table {
+          border-collapse: collapse;
+          width: 100%;
+        }
+        .print-content th, .print-content td {
+          border: 1px solid #333;
+          padding: 6px 10px;
+          text-align: center;
+        }
+        .print-content .page-break {
+          page-break-before: always;
+        }
+        @page {
+          size: A4;
+          margin: 15mm 20mm;
+        }
       }
     </style>
   <script type="importmap">
