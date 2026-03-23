@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { AI_MODELS, DIFFICULTIES } from '../constants';
 import { ExamRequest, ExamMode, ExamFormat, Difficulty, AIModelId, UploadedFile } from '../types';
 
@@ -80,7 +80,29 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   const hasSampleFiles = request.sampleExamFiles.length > 0;
   const hasRefFiles = request.referenceFiles.length > 0;
-  const canSubmit = (hasSampleFiles || hasRefFiles) && !isGenerating;
+  const hasRefUrls = (request.referenceUrls?.length || 0) > 0;
+  const canSubmit = (hasSampleFiles || hasRefFiles || hasRefUrls) && !isGenerating;
+
+  // URL input state
+  const [urlInput, setUrlInput] = useState('');
+
+  const addUrl = () => {
+    const url = urlInput.trim();
+    if (!url) return;
+    // Basic URL validation
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      alert('Vui lòng nhập URL hợp lệ (bắt đầu bằng http:// hoặc https://)');
+      return;
+    }
+    onChange('referenceUrls', [...(request.referenceUrls || []), url]);
+    setUrlInput('');
+  };
+
+  const removeUrl = (index: number) => {
+    const urls = [...(request.referenceUrls || [])];
+    urls.splice(index, 1);
+    onChange('referenceUrls', urls);
+  };
 
   return (
     <div className="space-y-4">
@@ -191,7 +213,7 @@ export const InputForm: React.FC<InputFormProps> = ({
             <input
               ref={sampleInputRef}
               type="file"
-              accept=".pdf,.txt,.png,.jpg,.jpeg,.webp"
+              accept=".pdf,.txt,.docx,.png,.jpg,.jpeg,.webp"
               multiple
               onChange={(e) => handleFileUpload('sampleExamFiles', e)}
               className="hidden"
@@ -203,7 +225,7 @@ export const InputForm: React.FC<InputFormProps> = ({
             <div className="text-xs text-slate-500 mt-0.5">
               {hasSampleFiles
                 ? `${request.sampleExamFiles.length} file đã tải`
-                : 'Ảnh, PDF, TXT — Để AI phân tích cấu trúc đề'
+                : 'Ảnh, PDF, DOCX, TXT — Để AI phân tích cấu trúc đề'
               }
             </div>
 
@@ -235,7 +257,7 @@ export const InputForm: React.FC<InputFormProps> = ({
             <input
               ref={refInputRef}
               type="file"
-              accept=".pdf,.txt,.png,.jpg,.jpeg,.webp"
+              accept=".pdf,.txt,.docx,.png,.jpg,.jpeg,.webp"
               multiple
               onChange={(e) => handleFileUpload('referenceFiles', e)}
               className="hidden"
@@ -247,7 +269,7 @@ export const InputForm: React.FC<InputFormProps> = ({
             <div className="text-xs text-slate-500 mt-0.5">
               {hasRefFiles
                 ? `${request.referenceFiles.length} file đã tải`
-                : 'Ảnh, PDF, TXT — Chứa dạng bài, công thức, bài tập mẫu'
+                : 'Ảnh, PDF, DOCX, TXT — Chứa dạng bài, công thức, bài tập mẫu'
               }
             </div>
 
@@ -260,6 +282,47 @@ export const InputForm: React.FC<InputFormProps> = ({
                     <span className="text-slate-400">{formatSize(f.size)}</span>
                     <button
                       onClick={() => removeFile('referenceFiles', i)}
+                      className="text-red-400 hover:text-red-600 ml-1"
+                    >✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* === Liên kết tham khảo === */}
+          <div className="bg-white/80 rounded-xl p-4 border border-indigo-100">
+            <div className="font-bold text-sm text-slate-700 mb-1 flex items-center gap-1.5">
+              🔗 Liên kết tham khảo
+            </div>
+            <p className="text-[10px] text-slate-500 mb-3">Dán link bài viết, đề thi online, tài liệu web</p>
+
+            <div className="flex gap-2 mb-2">
+              <input
+                type="url"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addUrl(); } }}
+                placeholder="https://..."
+                className="flex-1 rounded-lg border border-slate-300 bg-slate-50 py-2 px-3 text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+              />
+              <button
+                type="button"
+                onClick={addUrl}
+                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors shrink-0"
+              >
+                Thêm
+              </button>
+            </div>
+
+            {hasRefUrls && (
+              <div className="space-y-1.5">
+                {request.referenceUrls.map((url, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border border-indigo-100 text-xs">
+                    <span className="text-indigo-500">🔗</span>
+                    <a href={url} target="_blank" rel="noreferrer" className="flex-1 truncate font-medium text-indigo-600 hover:underline">{url}</a>
+                    <button
+                      onClick={() => removeUrl(i)}
                       className="text-red-400 hover:text-red-600 ml-1"
                     >✕</button>
                   </div>
