@@ -191,22 +191,42 @@ Khi mức độ "Vận dụng" hoặc "Vận dụng cao":
 - Không viết lời giới thiệu dài dòng — bắt đầu ngay bằng nội dung đề/đáp án
 
 ================================
-5. HÌNH VẼ, BIỂU ĐỒ — SVG
+5. HÌNH VẼ, BIỂU ĐỒ — SVG (BẮT BUỘC)
 ================================
-Khi câu hỏi CẦN hình minh họa (hình học, đồ thị hàm số, biểu đồ thống kê), hãy TẠO mã SVG.
-CÁCH VIẾT: Đặt mã SVG trong code block có ngôn ngữ "svg":
+BẮT BUỘC vẽ hình SVG khi câu hỏi liên quan đến:
+- Hình học phẳng: tam giác, tứ giác, đường tròn, góc...  
+- Hình học không gian: hình hộp, hình chóp, hình trụ, hình cầu...
+- Đồ thị hàm số: parabol, đường thẳng, hàm bậc 3, lượng giác...
+- Biểu đồ thống kê, xác suất
+- Hệ trục tọa độ Oxy
 
-\`\`\`svg
+CÁCH VIẾT: Đặt SVG TRỰC TIẾP (KHÔNG dùng code block):
+
 <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
-  <!-- nội dung hình vẽ -->
+  <!-- Nội dung hình -->
 </svg>
-\`\`\`
 
-QUY TẮC VẼ SVG:
-- Kích thước viewBox tối đa 400x300. Nét vẽ rõ ràng, stroke-width: 1.5-2px
-- Dùng text SVG cho nhãn (tiếng Việt, font-size 12-14px)
-- Màu: đen (#000) cho nét chính, xanh (#0066cc) cho trục tọa độ, đỏ (#cc0000) cho đường cong/đồ thị
-- Đánh dấu điểm quan trọng bằng circle r=3
-- Hình tự chứa (self-contained), KHÔNG dùng external CSS/JS
-- PHẢI vẽ hình khi câu hỏi liên quan đến: hình học phẳng/không gian, đồ thị hàm số, biểu đồ xác suất/thống kê, hệ trục tọa độ
+VÍ DỤ — Tam giác ABC với đường cao AH:
+<svg viewBox="0 0 350 280" xmlns="http://www.w3.org/2000/svg">
+  <line x1="50" y1="240" x2="300" y2="240" stroke="#000" stroke-width="2"/>
+  <line x1="50" y1="240" x2="180" y2="40" stroke="#000" stroke-width="2"/>
+  <line x1="300" y1="240" x2="180" y2="40" stroke="#000" stroke-width="2"/>
+  <line x1="180" y1="40" x2="180" y2="240" stroke="#cc0000" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <circle cx="50" cy="240" r="3" fill="#000"/>
+  <circle cx="300" cy="240" r="3" fill="#000"/>
+  <circle cx="180" cy="40" r="3" fill="#000"/>
+  <circle cx="180" cy="240" r="3" fill="#cc0000"/>
+  <text x="35" y="258" font-size="14" font-weight="bold">B</text>
+  <text x="305" y="258" font-size="14" font-weight="bold">C</text>
+  <text x="172" y="30" font-size="14" font-weight="bold">A</text>
+  <text x="185" y="258" font-size="13" fill="#cc0000" font-weight="bold">H</text>
+</svg>
+
+QUY TẮC:
+- viewBox tối đa 400x300, stroke-width: 1.5-2px
+- Nhãn: text SVG tiếng Việt, font-size 12-14px, font-weight bold
+- Màu: đen (#000) nét chính, đỏ (#cc0000) nét đặc biệt, xanh (#0066cc) trục tọa độ  
+- Đánh dấu đỉnh bằng circle r=3
+- Đường nét đứt: stroke-dasharray="6,4"
+- Hình tự chứa, KHÔNG dùng external CSS/JS
 `;
