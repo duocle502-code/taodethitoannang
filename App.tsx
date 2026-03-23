@@ -3,7 +3,7 @@ import { InputForm } from './components/InputForm';
 import { ExamDisplay } from './components/ExamDisplay';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { QuestionBank } from './components/QuestionBank';
-import { ExamHistory, saveExamToHistory } from './components/ExamHistory';
+import { ExamHistory, saveExamToHistory, updateExamInHistory } from './components/ExamHistory';
 import { ExamMode, ExamFormat, Difficulty, ExamRequest, UploadedFile, SavedExam } from './types';
 import { generateExamOnly, generateAnswers } from './services/geminiService';
 import { apiKeyManager } from './services/apiKeyManager';
@@ -62,6 +62,9 @@ const App: React.FC = () => {
 
   // ====== State: Retry tracking ======
   const [lastAction, setLastAction] = useState<'generate' | 'answers' | null>(null);
+
+  // ====== Ref: ID đề thi hiện tại trong lịch sử (dùng để cập nhật thay vì tạo mới) ======
+  const currentHistoryIdRef = useRef<string | null>(null);
 
   // ====== State: Active View ======
   const [activeView, setActiveView] = useState<'create' | 'bank' | 'history'>('create');
@@ -225,6 +228,22 @@ const App: React.FC = () => {
       );
       setExamContent(result);
       setStatusMessage('');
+
+      // Auto-save vào lịch sử
+      const id = Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+      const modeLabel = request.examMode === ExamMode.Vao10 ? 'Vào 10' : 'TN THPT';
+      saveExamToHistory({
+        id,
+        title: `Đề ${modeLabel} — ${new Date().toLocaleDateString('vi-VN')}`,
+        examContent: result,
+        answersContent: '',
+        examMode: request.examMode,
+        examFormat: request.examFormat,
+        difficulty: request.difficulty,
+        model: request.model,
+        createdAt: new Date().toISOString(),
+      });
+      currentHistoryIdRef.current = id;
     } catch (err: any) {
       const errorType = parseApiError(err);
 
@@ -246,6 +265,23 @@ const App: React.FC = () => {
             );
             setExamContent(result);
             setStatusMessage('');
+
+            // Auto-save vào lịch sử (retry)
+            const id = Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+            const modeLabel = request.examMode === ExamMode.Vao10 ? 'Vào 10' : 'TN THPT';
+            saveExamToHistory({
+              id,
+              title: `Đề ${modeLabel} — ${new Date().toLocaleDateString('vi-VN')}`,
+              examContent: result,
+              answersContent: '',
+              examMode: request.examMode,
+              examFormat: request.examFormat,
+              difficulty: request.difficulty,
+              model: request.model,
+              createdAt: new Date().toISOString(),
+            });
+            currentHistoryIdRef.current = id;
+
             setIsGenerating(false);
             return;
           } catch (retryErr: any) {
@@ -301,6 +337,11 @@ const App: React.FC = () => {
       );
       setAnswersContent(result);
       setStatusMessage('');
+
+      // Cập nhật đáp án vào lịch sử
+      if (currentHistoryIdRef.current) {
+        updateExamInHistory(currentHistoryIdRef.current, { answersContent: result });
+      }
     } catch (err: any) {
       const errorType = parseApiError(err);
 
@@ -324,6 +365,12 @@ const App: React.FC = () => {
             );
             setAnswersContent(result);
             setStatusMessage('');
+
+            // Cập nhật đáp án vào lịch sử (retry)
+            if (currentHistoryIdRef.current) {
+              updateExamInHistory(currentHistoryIdRef.current, { answersContent: result });
+            }
+
             setIsGeneratingAnswers(false);
             return;
           } catch (retryErr: any) {
