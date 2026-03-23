@@ -336,19 +336,46 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
       : examContent;
 
     // Convert markdown-like content to simple HTML
-    const htmlContent = content
+    // Step 1: Pre-process tables into HTML blocks (before paragraph splitting)
+    const preProcessTables = (text: string): string => {
+      const lines = text.split('\n');
+      const result: string[] = [];
+      let i = 0;
+
+      while (i < lines.length) {
+        const line = lines[i].trim();
+        // Detect start of a markdown table
+        if (line.startsWith('|') && line.endsWith('|')) {
+          const tableRows: string[] = [];
+          while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+            const row = lines[i].trim();
+            // Skip separator rows (|---|---|)
+            if (!row.match(/^\|[-:\s|]+\|$/)) {
+              const cells = row.split('|').filter(c => c.trim() !== '');
+              const isHeader = tableRows.length === 0;
+              const tag = isHeader ? 'th' : 'td';
+              const style = `border:1px solid #333;padding:6px 10px;text-align:center;${isHeader ? 'font-weight:bold;background:#f0f0f0;' : ''}`;
+              tableRows.push('<tr>' + cells.map(c => `<${tag} style="${style}">${c.trim()}</${tag}>`).join('') + '</tr>');
+            }
+            i++;
+          }
+          if (tableRows.length > 0) {
+            result.push(`<table style="border-collapse:collapse;width:100%;margin:12px 0">${tableRows.join('')}</table>`);
+          }
+        } else {
+          result.push(lines[i]);
+          i++;
+        }
+      }
+      return result.join('\n');
+    };
+
+    const htmlContent = preProcessTables(content)
       .replace(/^### (.*$)/gm, '<h3>$1</h3>')
       .replace(/^## (.*$)/gm, '<h2>$1</h2>')
       .replace(/^# (.*$)/gm, '<h1>$1</h1>')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/^---$/gm, '<hr style="page-break-before: always; border: none;" />')
-      .replace(/^\|(.+)\|$/gm, (match) => {
-        const cells = match.split('|').filter(c => c.trim() !== '');
-        if (cells.every(c => /^[-:\s]+$/.test(c.trim()))) return '';
-        const tag = 'td';
-        return '<tr>' + cells.map(c => `<${tag} style="border:1px solid #333;padding:6px 10px;text-align:center">${c.trim()}</${tag}>`).join('') + '</tr>';
-      })
-      .replace(/(<tr>.*<\/tr>\n?)+/g, '<table style="border-collapse:collapse;width:100%;margin:12px 0">$&</table>')
       // SVG code blocks: render as actual SVG
       .replace(/```svg\n([\s\S]*?)```/g, (_, svgCode) => `<div style="text-align:center;margin:16px 0">${svgCode}</div>`)
       // Xử lý xuống dòng: đoạn mới (2 newlines) → <p>, đơn newline → <br>
