@@ -1,0 +1,21 @@
+{
+  "name": "TẠO ĐỀ THI TOÁN — EDUGENVN",
+  "short_name": "EduGenVN",
+  "description": "Ứng dụng AI tạo đề thi Toán vào lớp 10 và Tốt nghiệp THPT tự động bằng Gemini",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0d9488",
+  "orientation": "portrait-primary",
+  "lang": "vi",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
