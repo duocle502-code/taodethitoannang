@@ -346,6 +346,37 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
   };
 
   // ============================================
+  // CUSTOM MARKDOWN COMPONENTS — SVG renderer
+  // ============================================
+  const markdownComponents = {
+    code({ className, children, ...props }: any) {
+      const language = className?.replace('language-', '') || '';
+      const codeString = String(children).replace(/\n$/, '');
+
+      // Render SVG code blocks as actual SVG
+      if (language === 'svg' && codeString.includes('<svg')) {
+        // Basic sanitization
+        const sanitized = codeString
+          .replace(/<script[\s\S]*?<\/script>/gi, '')
+          .replace(/on\w+="[^"]*"/gi, '');
+        return (
+          <div
+            className="my-4 flex justify-center"
+            dangerouslySetInnerHTML={{ __html: `<div style="max-width:100%;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;padding:12px;background:#fafafa;">${sanitized}</div>` }}
+          />
+        );
+      }
+
+      // Default: render as normal code block
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    },
+  };
+
+  // ============================================
   // RENDER
   // ============================================
   return (
@@ -398,7 +429,7 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
             <span className="text-xs font-bold text-teal-600 uppercase tracking-wider">Đề Bài</span>
           </div>
           <div className="prose prose-slate max-w-none prose-headings:font-bold prose-headings:text-teal-900 prose-p:text-slate-700 prose-strong:text-slate-900 prose-li:text-slate-700 prose-sm">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
               {examContent}
             </ReactMarkdown>
           </div>
@@ -413,7 +444,7 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
           {answersContent ? (
             /* ĐÃ CÓ ĐÁP ÁN → Hiển thị */
             <div className="prose prose-slate max-w-none prose-headings:font-bold prose-headings:text-teal-900 prose-p:text-slate-700 prose-strong:text-slate-900 prose-li:text-slate-700 prose-sm">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                 {answersContent}
               </ReactMarkdown>
             </div>
