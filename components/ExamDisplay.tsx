@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, PageBreak, AlignmentType, Table, TableRow, TableCell, BorderStyle, WidthType } from "docx";
 
 // MathJax global
 declare global {
@@ -44,275 +43,238 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
   if (!examContent) return null;
 
   // ============================================
-  // DOWNLOAD WORD
+  // HELPER: Markdown → HTML (dùng chung cho cả Word & PDF)
+  // ============================================
+  const markdownToHtml = (content: string): string => {
+    // Pre-process tables
+    const preProcessTables = (text: string): string => {
+      const lines = text.split('\n');
+      const result: string[] = [];
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i].trim();
+        if (line.startsWith('|') && line.endsWith('|')) {
+          const tableRows: string[] = [];
+          while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+            const row = lines[i].trim();
+            if (!row.match(/^\|[-:\s|]+\|$/)) {
+              const cells = row.split('|').filter(c => c.trim() !== '');
+              const isHeader = tableRows.length === 0;
+              const tag = isHeader ? 'th' : 'td';
+              const style = `border:1px solid #333;padding:6px 10px;text-align:center;${isHeader ? 'font-weight:bold;background:#f0f0f0;' : ''}`;
+              tableRows.push('<tr>' + cells.map(c => `<${tag} style="${style}">${c.trim()}</${tag}>`).join('') + '</tr>');
+            }
+            i++;
+          }
+          if (tableRows.length > 0) {
+            result.push(`<table style="border-collapse:collapse;width:100%;margin:12px 0">${tableRows.join('')}</table>`);
+          }
+        } else {
+          result.push(lines[i]);
+          i++;
+        }
+      }
+      return result.join('\n');
+    };
+
+    return preProcessTables(content)
+      .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+      .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+      .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^---$/gm, '<hr style="page-break-before: always; border: none;" />')
+      // SVG code blocks → render as actual SVG
+      .replace(/```svg\n([\s\S]*?)```/g, (_, svgCode) => `<div style="text-align:center;margin:16px 0">${svgCode}</div>`)
+      // Paragraphs
+      .split(/\n{2,}/)
+      .map(block => {
+        const trimmed = block.trim();
+        if (!trimmed) return '';
+        if (trimmed.startsWith('<h') || trimmed.startsWith('<hr') || trimmed.startsWith('<table') || trimmed.startsWith('<div')) return trimmed;
+        return '<p style="margin:4px 0">' + trimmed.replace(/\n/g, '<br/>') + '</p>';
+      })
+      .join('\n');
+  };
+
+  // ============================================
+  // DOWNLOAD WORD (HTML + MathJax approach)
   // ============================================
   const handleDownloadWord = async () => {
     setIsDownloading(true);
     try {
-      // Convert LaTeX math → Unicode cho DOCX
-      const latexToUnicode = (text: string): string => {
-        return text
-          // Strip $...$ and $$...$$ delimiters
-          .replace(/\$\$([\s\S]*?)\$\$/g, ' $1 ')
-          .replace(/\$(.*?)\$/g, '$1')
-          // Fractions: \frac{a}{b} → a/b
-          .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, '($1/$2)')
-          // Superscripts
-          .replace(/\^{([^}]*)}/g, (_, exp) => {
-            const sup: Record<string, string> = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','n':'ⁿ','x':'ˣ','+':'⁺','-':'⁻','(':'⁽',')':'⁾'};
-            return exp.split('').map((c: string) => sup[c] || c).join('');
-          })
-          .replace(/\^(\d)/g, (_, d) => {
-            const sup: Record<string, string> = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
-            return sup[d] || d;
-          })
-          // Subscripts
-          .replace(/_{([^}]*)}/g, (_, sub) => {
-            const subs: Record<string, string> = {'0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉','n':'ₙ','i':'ᵢ','k':'ₖ'};
-            return sub.split('').map((c: string) => subs[c] || c).join('');
-          })
-          .replace(/_(\d)/g, (_, d) => {
-            const subs: Record<string, string> = {'0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉'};
-            return subs[d] || d;
-          })
-          // Square root
-          .replace(/\\sqrt\{([^}]*)\}/g, '√($1)')
-          .replace(/\\sqrt\s/g, '√')
-          // Greek letters
-          .replace(/\\alpha/g,'α').replace(/\\beta/g,'β').replace(/\\gamma/g,'γ').replace(/\\delta/g,'δ')
-          .replace(/\\epsilon/g,'ε').replace(/\\theta/g,'θ').replace(/\\lambda/g,'λ').replace(/\\mu/g,'μ')
-          .replace(/\\pi/g,'π').replace(/\\sigma/g,'σ').replace(/\\phi/g,'φ').replace(/\\omega/g,'ω')
-          .replace(/\\Delta/g,'Δ').replace(/\\Sigma/g,'Σ').replace(/\\Omega/g,'Ω').replace(/\\Phi/g,'Φ')
-          // Operators & symbols
-          .replace(/\\leq/g,'≤').replace(/\\geq/g,'≥').replace(/\\neq/g,'≠').replace(/\\approx/g,'≈')
-          .replace(/\\pm/g,'±').replace(/\\mp/g,'∓').replace(/\\times/g,'×').replace(/\\div/g,'÷')
-          .replace(/\\cdot/g,'·').replace(/\\infty/g,'∞').replace(/\\in/g,'∈').replace(/\\notin/g,'∉')
-          .replace(/\\subset/g,'⊂').replace(/\\cup/g,'∪').replace(/\\cap/g,'∩')
-          .replace(/\\forall/g,'∀').replace(/\\exists/g,'∃')
-          .replace(/\\Rightarrow/g,'⇒').replace(/\\Leftrightarrow/g,'⇔')
-          .replace(/\\rightarrow/g,'→').replace(/\\leftarrow/g,'←')
-          .replace(/\\le\b/g,'≤').replace(/\\ge\b/g,'≥').replace(/\\ne\b/g,'≠')
-          // Integrals, sums
-          .replace(/\\int/g,'∫').replace(/\\sum/g,'Σ').replace(/\\prod/g,'∏').replace(/\\lim/g,'lim')
-          // Overline
-          .replace(/\\overline\{([^}]*)\}/g, '$1\u0305')
-          // Braces & misc
-          .replace(/\\left\(/g,'(').replace(/\\right\)/g,')').replace(/\\left\[/g,'[').replace(/\\right\]/g,']')
-          .replace(/\\left\\\{/g,'{').replace(/\\right\\\}/g,'}')
-          .replace(/\\{/g,'{').replace(/\\}/g,'}')
-          .replace(/\\text\{([^}]*)\}/g, '$1')
-          .replace(/\\mathrm\{([^}]*)\}/g, '$1')
-          .replace(/\\quad/g, '  ').replace(/\\qquad/g, '    ')
-          // Strip remaining backslash commands
-          .replace(/\\[a-zA-Z]+/g, '')
-          // Clean up markdown bold
-          .replace(/\*\*/g, '');
-      };
+      // Ghép content
+      const content = answersContent
+        ? `${examContent}\n\n---\n\n## ĐÁP ÁN VÀ LỜI GIẢI CHI TIẾT\n\n${answersContent}`
+        : examContent;
 
-      const processText = (text: string): string => latexToUnicode(text);
+      const htmlContent = markdownToHtml(content);
 
-      const createTableFromMarkdown = (tableLines: string[]): Table => {
-        const cellBorder = { style: BorderStyle.SINGLE, size: 1, color: "000000" };
-        const borders = { top: cellBorder, bottom: cellBorder, left: cellBorder, right: cellBorder };
-        const rows: TableRow[] = [];
+      // Tạo full HTML document với MathJax
+      const fullHtml = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <!--[if gte mso 9]>
+  <xml>
+    <o:OfficeDocumentSettings>
+      <o:AllowPNG/>
+    </o:OfficeDocumentSettings>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    @page {
+      size: A4;
+      margin: 2cm 2.5cm;
+    }
+    body {
+      font-family: 'Times New Roman', serif;
+      font-size: 12pt;
+      line-height: 1.8;
+      color: #000;
+      max-width: 100%;
+    }
+    h1 {
+      font-size: 16pt;
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+    h2 {
+      font-size: 14pt;
+      margin-top: 24px;
+      font-weight: bold;
+    }
+    h3 {
+      font-size: 13pt;
+      margin-top: 16px;
+      font-weight: bold;
+    }
+    strong { font-weight: bold; }
+    hr {
+      page-break-before: always;
+      border: none;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 12px 0;
+    }
+    th, td {
+      border: 1px solid #333;
+      padding: 6px 10px;
+      text-align: center;
+    }
+    p {
+      margin: 4px 0;
+      text-align: justify;
+    }
+    svg {
+      max-width: 400px;
+      margin: 0 auto;
+      display: block;
+    }
+    .footer {
+      text-align: center;
+      color: #666;
+      font-size: 10pt;
+      font-style: italic;
+      margin-top: 40px;
+      padding-top: 16px;
+      border-top: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>ĐỀ THI — TẠO BỞI EDUGENVN</h1>
+  ${htmlContent}
+  <div class="footer">Đề thi được tạo bởi EDUGENVN — Phát triển bởi thầy Trần Hoài Thanh</div>
+</body>
+</html>`;
 
-        for (let i = 0; i < tableLines.length; i++) {
-          const line = tableLines[i].trim();
-          if (line.match(/^\|[-:\s|]+\|$/)) continue;
-          const cells = line.split('|').filter(cell => cell.trim() !== '');
-          if (cells.length > 0) {
-            const isHeader = i === 0;
-            rows.push(new TableRow({
-              tableHeader: isHeader,
-              children: cells.map(cellText => new TableCell({
-                borders,
-                width: { size: Math.floor(9000 / cells.length), type: WidthType.DXA },
-                children: [new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [new TextRun({
-                    text: cellText.trim(),
-                    bold: isHeader,
-                    size: 22,
-                    font: "Times New Roman"
-                  })]
-                })]
-              }))
-            }));
-          }
-        }
-        return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows });
-      };
+      // Tạo iframe ẩn để render MathJax
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:800px;height:600px;';
+      document.body.appendChild(iframe);
 
-      const isTableLine = (line: string): boolean => {
-        return line.trim().startsWith('|') && line.trim().endsWith('|');
-      };
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) throw new Error('Không thể tạo iframe');
 
-      const createParagraphsFromMarkdown = (text: string): (Paragraph | Table)[] => {
-        const elements: (Paragraph | Table)[] = [];
-        const lines = text.split('\n');
+      // Write HTML (chưa có MathJax)
+      iframeDoc.open();
+      iframeDoc.write(fullHtml);
+      iframeDoc.close();
 
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          const cleanLine = line.trim();
+      // Load MathJax vào iframe
+      await new Promise<void>((resolve, reject) => {
+        const iframeWin = iframe.contentWindow as any;
 
-          if (!cleanLine) {
-            elements.push(new Paragraph({ children: [new TextRun({ text: "", font: "Times New Roman" })] }));
-            continue;
-          }
-
-          if (isTableLine(cleanLine)) {
-            const tableLines: string[] = [cleanLine];
-            while (i + 1 < lines.length && isTableLine(lines[i + 1].trim())) {
-              i++;
-              tableLines.push(lines[i].trim());
+        // Config MathJax
+        iframeWin.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            processEscapes: true
+          },
+          svg: { fontCache: 'global' },
+          startup: {
+            ready: () => {
+              iframeWin.MathJax.startup.defaultReady();
+              iframeWin.MathJax.startup.promise.then(() => {
+                // Đợi thêm chút cho render hoàn tất
+                setTimeout(resolve, 500);
+              }).catch(reject);
             }
-            if (tableLines.length >= 2) {
-              elements.push(createTableFromMarkdown(tableLines));
-              elements.push(new Paragraph({ children: [new TextRun({ text: "", font: "Times New Roman" })] }));
-            }
-            continue;
           }
+        };
 
-          const processedLine = processText(cleanLine);
+        const script = iframeDoc!.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js';
+        script.onerror = () => {
+          // Nếu không load được MathJax, vẫn xuất file (không có render công thức)
+          console.warn('⚠️ Không thể tải MathJax, xuất Word không có render công thức');
+          setTimeout(resolve, 100);
+        };
+        iframeDoc!.head.appendChild(script);
 
-          if (cleanLine.startsWith('### ')) {
-            elements.push(new Paragraph({
-              children: [new TextRun({ text: processText(cleanLine.replace('### ', '')), bold: true, size: 26, font: "Times New Roman" })],
-              heading: HeadingLevel.HEADING_3,
-              spacing: { before: 300, after: 150 }
-            }));
-            continue;
-          }
-          if (cleanLine.startsWith('## ')) {
-            elements.push(new Paragraph({
-              children: [new TextRun({ text: processText(cleanLine.replace('## ', '')), bold: true, size: 28, font: "Times New Roman" })],
-              heading: HeadingLevel.HEADING_2,
-              spacing: { before: 300, after: 150 }
-            }));
-            continue;
-          }
-
-          const questionMatch = cleanLine.match(/^(\*\*)?(Câu|Bài)\s*\d+[^:]*:/i);
-          if (questionMatch) {
-            const titleEnd = cleanLine.indexOf(':', questionMatch[0].length - 1) + 1;
-            const title = cleanLine.substring(0, titleEnd).replace(/\*\*/g, '');
-            const bodyText = cleanLine.substring(titleEnd).trim();
-            const children: TextRun[] = [
-              new TextRun({ text: title + " ", bold: true, size: 24, font: "Times New Roman" })
-            ];
-            if (bodyText) {
-              children.push(new TextRun({ text: bodyText, size: 24, font: "Times New Roman" }));
-            }
-            elements.push(new Paragraph({ children, spacing: { before: 300, after: 120 } }));
-            continue;
-          }
-
-          if (cleanLine.match(/^(\*\*)?(Lời giải|Hướng dẫn giải|Giải|Đáp án đúng)/i)) {
-            elements.push(new Paragraph({
-              children: [new TextRun({ text: processText(cleanLine), bold: true, size: 24, font: "Times New Roman" })],
-              spacing: { before: 200, after: 100 }
-            }));
-            continue;
-          }
-
-          const answerMatch = cleanLine.match(/^([A-D])\.\s+(.*)/);
-          if (answerMatch) {
-            elements.push(new Paragraph({
-              children: [
-                new TextRun({ text: answerMatch[1] + ". ", bold: true, size: 24, font: "Times New Roman" }),
-                new TextRun({ text: answerMatch[2], size: 24, font: "Times New Roman" })
-              ],
-              spacing: { after: 80 }
-            }));
-            continue;
-          }
-
-          let displayLine = processedLine;
-          let isBullet = false;
-          const bulletMatch = displayLine.match(/^[-+*]\s+(.*)$/);
-          if (bulletMatch) {
-            displayLine = "• " + bulletMatch[1];
-            isBullet = true;
-          }
-
-          const boldPattern = /\*\*([^*]+)\*\*/g;
-          const parts: TextRun[] = [];
-          let lastIndex = 0;
-          let match;
-
-          while ((match = boldPattern.exec(displayLine)) !== null) {
-            if (match.index > lastIndex) {
-              parts.push(new TextRun({ text: displayLine.slice(lastIndex, match.index), size: 24, font: "Times New Roman" }));
-            }
-            parts.push(new TextRun({ text: match[1], bold: true, size: 24, font: "Times New Roman" }));
-            lastIndex = match.index + match[0].length;
-          }
-          if (lastIndex < displayLine.length) {
-            parts.push(new TextRun({ text: displayLine.slice(lastIndex).replace(/\*\*/g, ''), size: 24, font: "Times New Roman" }));
-          }
-          if (parts.length === 0) {
-            parts.push(new TextRun({ text: displayLine.replace(/\*\*/g, ''), size: 24, font: "Times New Roman" }));
-          }
-
-          elements.push(new Paragraph({
-            children: parts,
-            spacing: { after: 100 },
-            indent: isBullet ? { left: 360 } : undefined
-          }));
-        }
-        return elements;
-      };
-
-      const creditParagraph = new Paragraph({
-        children: [new TextRun({
-          text: "Đề thi được tạo bởi EDUGENVN - Phát triển bởi thầy Trần Hoài Thanh",
-          italics: true, size: 22, font: "Times New Roman", color: "666666"
-        })],
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 400, after: 200 }
+        // Timeout sau 10s nếu MathJax chưa load xong
+        setTimeout(() => {
+          console.warn('⚠️ MathJax timeout, xuất Word với nội dung hiện tại');
+          resolve();
+        }, 10000);
       });
 
-      const sections: any[] = [];
+      // Lấy HTML đã render (MathJax đã chuyển $ → SVG)
+      const renderedHtml = iframeDoc.documentElement.outerHTML;
 
-      // Phần đề bài
-      const examParagraphs = createParagraphsFromMarkdown(examContent);
-      const sectionChildren: any[] = [
-        new Paragraph({
-          children: [new TextRun({ text: "ĐỀ THI — TẠO BỞI EDUGENVN", bold: true, size: 32, font: "Times New Roman" })],
-          heading: HeadingLevel.HEADING_1,
-          alignment: AlignmentType.CENTER,
-          spacing: { after: 400 }
-        }),
-        ...examParagraphs,
-        creditParagraph,
-      ];
+      // Wrap lại với Word namespace headers
+      const wordHtml = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+${renderedHtml.replace(/<html[^>]*>/, '').replace(/<\/html>/, '')}
+</html>`;
 
-      // Nếu có đáp án → thêm page break + đáp án
-      if (answersContent) {
-        sectionChildren.push(new Paragraph({ children: [new PageBreak()] }));
-        sectionChildren.push(new Paragraph({
-          children: [new TextRun({ text: "ĐÁP ÁN VÀ LỜI GIẢI CHI TIẾT", bold: true, size: 32, font: "Times New Roman" })],
-          heading: HeadingLevel.HEADING_1,
-          alignment: AlignmentType.CENTER,
-          spacing: { before: 200, after: 400 }
-        }));
-        sectionChildren.push(...createParagraphsFromMarkdown(answersContent));
-        sectionChildren.push(creditParagraph);
-      }
-
-      const doc = new Document({
-        sections: [{ properties: {}, children: sectionChildren }],
-      });
-
-      const blob = await Packer.toBlob(doc);
+      // Download
+      const blob = new Blob(['\ufeff' + wordHtml], { type: 'application/msword;charset=utf-8' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `De_Thi_EduGenVN_${new Date().toISOString().slice(0, 10)}.docx`;
+      a.download = `De_Thi_EduGenVN_${new Date().toISOString().slice(0, 10)}.doc`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+
+      // Cleanup iframe
+      document.body.removeChild(iframe);
     } catch (error) {
       console.error("Error creating Word document:", error);
       alert("Có lỗi khi tạo file Word. Vui lòng thử lại.");
@@ -335,59 +297,7 @@ export const ExamDisplay: React.FC<ExamDisplayProps> = ({
       ? `${examContent}\n\n---\n\n## ĐÁP ÁN VÀ LỜI GIẢI CHI TIẾT\n\n${answersContent}`
       : examContent;
 
-    // Convert markdown-like content to simple HTML
-    // Step 1: Pre-process tables into HTML blocks (before paragraph splitting)
-    const preProcessTables = (text: string): string => {
-      const lines = text.split('\n');
-      const result: string[] = [];
-      let i = 0;
-
-      while (i < lines.length) {
-        const line = lines[i].trim();
-        // Detect start of a markdown table
-        if (line.startsWith('|') && line.endsWith('|')) {
-          const tableRows: string[] = [];
-          while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
-            const row = lines[i].trim();
-            // Skip separator rows (|---|---|)
-            if (!row.match(/^\|[-:\s|]+\|$/)) {
-              const cells = row.split('|').filter(c => c.trim() !== '');
-              const isHeader = tableRows.length === 0;
-              const tag = isHeader ? 'th' : 'td';
-              const style = `border:1px solid #333;padding:6px 10px;text-align:center;${isHeader ? 'font-weight:bold;background:#f0f0f0;' : ''}`;
-              tableRows.push('<tr>' + cells.map(c => `<${tag} style="${style}">${c.trim()}</${tag}>`).join('') + '</tr>');
-            }
-            i++;
-          }
-          if (tableRows.length > 0) {
-            result.push(`<table style="border-collapse:collapse;width:100%;margin:12px 0">${tableRows.join('')}</table>`);
-          }
-        } else {
-          result.push(lines[i]);
-          i++;
-        }
-      }
-      return result.join('\n');
-    };
-
-    const htmlContent = preProcessTables(content)
-      .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-      .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-      .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^---$/gm, '<hr style="page-break-before: always; border: none;" />')
-      // SVG code blocks: render as actual SVG
-      .replace(/```svg\n([\s\S]*?)```/g, (_, svgCode) => `<div style="text-align:center;margin:16px 0">${svgCode}</div>`)
-      // Xử lý xuống dòng: đoạn mới (2 newlines) → <p>, đơn newline → <br>
-      .split(/\n{2,}/)
-      .map(block => {
-        const trimmed = block.trim();
-        if (!trimmed) return '';
-        // Skip blocks already wrapped in HTML tags
-        if (trimmed.startsWith('<h') || trimmed.startsWith('<hr') || trimmed.startsWith('<table') || trimmed.startsWith('<div')) return trimmed;
-        return '<p style="margin:4px 0">' + trimmed.replace(/\n/g, '<br/>') + '</p>';
-      })
-      .join('\n');
+    const htmlContent = markdownToHtml(content);
 
     printWindow.document.write(`
       <!DOCTYPE html>
